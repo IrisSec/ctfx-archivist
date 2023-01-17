@@ -7,6 +7,7 @@ import requests
 from modules.validation import validate_filename
 
 USER_AGENT = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:108.0) Gecko/20100101 Firefox/108.0"}
+EXCLUDE = ["/profile", "/logout", "/login"]
 
 def make_parent_dirs(target: str):
 	"""
@@ -24,9 +25,22 @@ def make_parent_dirs(target: str):
 def postprocess_html(html) -> str:
 	"""
 	Postprocess some HTML so that all links abide by the rules in validate_filename.
+	Also, remove all references to profile and logout.
 	"""
 
 	soup = bs4.BeautifulSoup(html, "html.parser")
+
+	# Remove "Profile"
+	try:
+		soup.find("a", attrs={"href": "/profile"}).clear()
+	except:
+		pass
+
+	# Remove "Logout"
+	try:
+		soup.find("form", attrs={"action": "/api"}).clear()
+	except:
+		pass
 
 	# meta image content
 	for meta in soup.find_all("meta"):
@@ -164,7 +178,7 @@ def clone(session, target: str, outputDir: str) -> list:
 		# If any links were scraped, add them to the todo list if they're not
 		# already completed or if they're not already in the todo list.
 		for link in links:
-			if link not in completed and link not in todo:
+			if link not in completed and link not in todo and link not in EXCLUDE:
 				todo.append(link)
 
 		# Save the resource.
