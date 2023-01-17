@@ -7,7 +7,7 @@ import requests
 from modules.validation import validate_filename
 
 USER_AGENT = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:108.0) Gecko/20100101 Firefox/108.0"}
-EXCLUDE = ["/profile", "/logout", "/login"]
+EXCLUDE = ["/profile", "/logout", "/login", "/user.php"]
 
 def make_parent_dirs(target: str):
 	"""
@@ -178,7 +178,14 @@ def clone(session, target: str, outputDir: str) -> list:
 		# If any links were scraped, add them to the todo list if they're not
 		# already completed or if they're not already in the todo list.
 		for link in links:
-			if link not in completed and link not in todo and link not in EXCLUDE:
+			if link not in completed and link not in todo:
+				skip = False
+				for e in EXCLUDE:
+					if e in link:
+						skip = True
+						break
+				if skip:
+					continue
 				todo.append(link)
 
 		# Save the resource.
