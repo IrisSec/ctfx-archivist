@@ -55,8 +55,8 @@ def main():
 			print(":: Alert:", alert)
 
 	print(":: Creating index page that redirects to home.html.")
-	with open(OUTPUT_DIR+"index.html") as f1:
-		with open("redirect.html") as f2:
+	with open(OUTPUT_DIR+"index.html", "w") as f1:
+		with open("redirect.html", "r") as f2:
 			f1.write(f2.read())
 
 	print(f":: All operations complete. Site saved to {OUTPUT_DIR}")
