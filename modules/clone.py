@@ -60,6 +60,8 @@ def postprocess_html(html) -> str:
 	# a href
 	for a in soup.find_all("a"):
 		if a.has_key("href") and len(a["href"]) > 1 and not a["href"].startswith("http"):
+			if "user.php" in a["href"]:
+				a["href"] = a["href"].replace(".php", "")
 			a["href"] = validate_filename(a["href"], isHTML=True, removeLeadingSlash=False)
 
 	# img src
