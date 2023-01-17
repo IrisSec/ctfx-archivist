@@ -10,7 +10,7 @@ from modules.clone import clone
 from modules.validation import validate_url
 
 OUTPUT_DIR = "_site/"
-FORCE_OVERWRITE = True
+FORCE_OVERWRITE = False
 
 def main():
 
