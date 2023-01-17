@@ -157,10 +157,12 @@ def clone(session, target: str, outputDir: str) -> list:
 
 			res = session.get(target+item, headers=USER_AGENT)
 
-			if res.status_code != 200 and i == 4:
+			if res.status_code == 200:
+				break
+
+			if i == 4:
 				alerts.append(f"GET {target+item} returned {res.status_code} after 5 attempts.")
 				failed = True
-			else:
 				break
 
 		if failed:
