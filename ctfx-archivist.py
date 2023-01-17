@@ -6,9 +6,10 @@ import requests
 import shutil
 
 from modules.auth import USER_AGENT, log_in
+from modules.clone import clone
 from modules.validation import validate_url
 
-OUTPUT_DIR = "_build/"
+OUTPUT_DIR = "_site/"
 FORCE_OVERWRITE = True
 
 def main():
@@ -48,8 +49,12 @@ def main():
 		else:
 			print(":: Successful login.")
 
-		# Test login success.
-		print(s.get(args.target+"/profile", headers=USER_AGENT).text)
+		# Begin to iteratively clone every page.
+		alerts = clone(s, args.target, OUTPUT_DIR)
+		for alert in alerts:
+			print(":: Alert:", alert)
+
+	print(f":: All operations complete. Site saved to {OUTPUT_DIR}")
 
 if __name__ == "__main__":
 	main()
