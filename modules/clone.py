@@ -134,10 +134,20 @@ def clone(session, target: str, outputDir: str) -> list:
 		# external. This is so we don't accidentally spider the Internet.
 		links = []
 
-		res = session.get(target+item, headers=USER_AGENT)
+		res = None
+		failed = False
 
-		if res.status_code != 200:
-			alerts.append(f"GET {target+item} returned {res.status_code}.")
+		for i in range(5):
+
+			res = session.get(target+item, headers=USER_AGENT)
+
+			if res.status_code != 200 and i == 4:
+				alerts.append(f"GET {target+item} returned {res.status_code} after 5 attempts.")
+				failed = True
+			else:
+				break
+
+		if failed:
 			continue
 
 		print(f":: Archiving {target+item}")
