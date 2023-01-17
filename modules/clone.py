@@ -4,6 +4,8 @@ import bs4
 import os
 import requests
 
+from modules.validation import validate_filename
+
 USER_AGENT = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:108.0) Gecko/20100101 Firefox/108.0"}
 
 def make_parent_dirs(target: str):
@@ -18,6 +20,47 @@ def make_parent_dirs(target: str):
 		return
 
 	os.makedirs("/".join(dirs), exist_ok=True)
+
+def postprocess_html(html) -> str:
+	"""
+	Postprocess some HTML so that all links abide by the rules in validate_filename.
+	"""
+
+	soup = bs4.BeautifulSoup(html, "html.parser")
+
+	# meta image content
+	for meta in soup.find_all("meta"):
+		if meta.has_key("property") and "image" in meta["property"]:
+			meta["content"] = validate_filename(meta["content"], removeLeadingSlash=False)
+
+	# link icon/css href
+	for link in soup.find_all("link"):
+		if link.has_key("rel") and ("icon" in link["rel"] or "stylesheet" in link["rel"]):
+			link["href"] = validate_filename(link["href"], removeLeadingSlash=False)
+
+	# script src
+	for script in soup.find_all("script"):
+		if script.has_key("src"):
+			script["src"] = validate_filename(script["src"], removeLeadingSlash=False)
+
+	# a href
+	for a in soup.find_all("a"):
+		if a.has_key("href") and len(a["href"]) > 1 and not a["href"].startswith("http"):
+			a["href"] = validate_filename(a["href"], isHTML=True, removeLeadingSlash=False)
+
+	# img src
+	for img in soup.find_all("img"):
+		if img.has_key("src") and img["src"].startswith("/"):
+			# Special exception is applied for flags. CTFx uses relative paths
+			# for them sometimes.
+			img["src"] = validate_filename(img["src"].replace("/static/img/icons/../", "/static/img/"), removeLeadingSlash=False)
+
+	# audio src
+	for audio in soup.find_all("audio"):
+		if audio.has_key("src"):
+			audio["src"] = validate_filename(audio["src"], removeLeadingSlash=False)
+
+	return soup.prettify("utf-8")
 
 def scrape_for_links_html(html) -> list:
 	"""
@@ -44,8 +87,11 @@ def scrape_for_links_html(html) -> list:
 
 	# a href
 	for a in soup.find_all("a"):
-		if a.has_key("href") and len(a["href"]) > 1 and a["href"].startswith("/"):
-			links.append(a["href"])
+		if a.has_key("href") and len(a["href"]) > 1 and not a["href"].startswith("http"):
+			if not a["href"].startswith("/"):
+				links.append("/"+a["href"])
+			else:
+				links.append(a["href"])
 
 	# img src
 	for img in soup.find_all("img"):
@@ -97,9 +143,13 @@ def clone(session, target: str, outputDir: str) -> list:
 		print(f":: Archiving {target+item}")
 		make_parent_dirs(outputDir[:-1] + item)
 
-		# HTML special case: scrape for more links.
+		content = res.content
+
+		# HTML special case: scrape for more links. Also, change URLs in the
+		# content to be saved to abide by the rules in validate_filename.
 		if "text/html" in res.headers["Content-Type"]:
 			links = scrape_for_links_html(res.text)
+			content = postprocess_html(content)
 
 		# If any links were scraped, add them to the todo list if they're not
 		# already completed or if they're not already in the todo list.
@@ -108,11 +158,9 @@ def clone(session, target: str, outputDir: str) -> list:
 				todo.append(link)
 
 		# Save the resource.
-		filename = item
-		if item.startswith("/"):
-			filename = filename[1:]
+		filename = validate_filename(item, "text/html" in res.headers["Content-Type"])
 		with open(outputDir+filename, "wb") as f:
-			f.write(res.content)
+			f.write(content)
 
 		# Move this item from todo to completed.
 		completed.append(item)
