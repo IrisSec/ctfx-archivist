@@ -7,7 +7,7 @@ import requests
 from modules.validation import validate_filename
 
 USER_AGENT = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:108.0) Gecko/20100101 Firefox/108.0"}
-EXCLUDE = ["/profile", "/logout", "/login", "/user.php"]
+EXCLUDE = ["/profile", "/logout", "/login", "/user.php", "/redir", "/redir?choice=wgl"]
 
 def make_parent_dirs(target: str):
 	"""
@@ -25,10 +25,17 @@ def make_parent_dirs(target: str):
 def postprocess_html(html) -> str:
 	"""
 	Postprocess some HTML so that all links abide by the rules in validate_filename.
-	Also, remove all references to profile and logout.
+	Also, remove all references to profile and logoutm replace the news banner with
+	a static message, and fix newlines.
 	"""
 
 	soup = bs4.BeautifulSoup(html, "html.parser")
+
+	# Replace news banner's innerhtml with "News (click for archive)".
+	try:
+		soup.find("div", id="news-bar").string = "News (click for archive)"
+	except:
+		pass
 
 	# Remove "Profile"
 	try:
@@ -75,6 +82,12 @@ def postprocess_html(html) -> str:
 	for audio in soup.find_all("audio"):
 		if audio.has_key("src"):
 			audio["src"] = validate_filename(audio["src"], removeLeadingSlash=False)
+
+	# Fix newlines.
+	for card in soup.find_all("div", attrs={"class": "card-content"}):
+		for p in card.find_all("p"):
+			if p.text.strip() == "":
+				p.append(soup.new_tag("br"))
 
 	return soup.prettify("utf-8")
 
@@ -155,7 +168,10 @@ def clone(session, target: str, outputDir: str) -> list:
 
 		for i in range(5):
 
-			res = session.get(target+item, headers=USER_AGENT)
+			try:
+				res = session.get(target+item, headers=USER_AGENT)
+			except:
+				pass
 
 			if res.status_code == 200:
 				break
@@ -182,6 +198,8 @@ def clone(session, target: str, outputDir: str) -> list:
 		# If any links were scraped, add them to the todo list if they're not
 		# already completed or if they're not already in the todo list.
 		for link in links:
+			if link.startswith("http") and target not in link:
+				continue
 			if link not in completed and link not in todo:
 				skip = False
 				for e in EXCLUDE:
